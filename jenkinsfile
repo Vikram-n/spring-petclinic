@@ -1,0 +1,48 @@
+pipeline {
+    agent any
+    
+    tools {
+        maven 'M3'
+    }
+        
+
+    stages {
+        stage('Hello') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Vikram-n/spring-petclinic.git'
+            }
+        }
+        stage('snyk integration') {
+            steps {
+                echo 'Testing ...'
+                snykSecurity(
+                    snykInstallation: 'snyk@latest',
+                    snykTokenId: 'snyk-cred',
+                    failOnIssues: 'false'
+                    )
+                }
+            }
+        stage('sonar cloud') {
+            steps {
+                sh 'mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=vikram-n_java-build-test'
+            }
+        }
+        stage('maven build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+        stage('Docker build') {
+            steps {
+                script {
+                def dockerfilePath ='./Dockerfile'
+                
+                def DockerImage = docker.build('spring-boot',"-f ${dockerfilePath} .")
+                
+                DockerImage.run('-p 9000:9000 -d')
+                }
+            }
+        }
+        
+    }
+}
